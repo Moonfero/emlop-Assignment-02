@@ -4,24 +4,8 @@ import torch
 from pytorch_lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
-import torch.nn.functional as F
-from torchvision import transforms as T
 
-
-class MNISTLitModule(LightningModule):
-    """Example of LightningModule for MNIST classification.
-
-    A LightningModule organizes your PyTorch code into 6 sections:
-        - Computations (init)
-        - Train loop (training_step)
-        - Validation loop (validation_step)
-        - Test loop (test_step)
-        - Prediction Loop (predict_step)
-        - Optimizers and LR Schedulers (configure_optimizers)
-
-    Docs:
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html
-    """
+class TIMMLitModule(LightningModule):
 
     def __init__(
         self,
@@ -33,8 +17,6 @@ class MNISTLitModule(LightningModule):
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False, ignore=["net"])
-
-        # add tensorboard hp_metric logging here
 
         self.net = net
 
@@ -54,23 +36,8 @@ class MNISTLitModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
-        self.predict_transform = T.Normalize((0.1307,), (0.3081,))
-
     def forward(self, x: torch.Tensor):
         return self.net(x)
-
-    @torch.jit.export
-    def forward_jit(self, x: torch.Tensor):
-        with torch.no_grad():
-            # transform the inputs
-            x = self.predict_transform(x)
-
-            # forward pass
-            logits = self(x)
-
-            preds = F.softmax(logits, dim=-1)
-
-        return preds
 
     def on_train_start(self):
         # by default lightning executes validation step sanity checks before training starts,
@@ -144,14 +111,3 @@ class MNISTLitModule(LightningModule):
         return {
             "optimizer": self.hparams.optimizer(params=self.parameters()),
         }
-
-
-if __name__ == "__main__":
-    import hydra
-    import omegaconf
-    import pyrootutils
-
-    root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "model" / "mnist.yaml")
-    _ = hydra.utils.instantiate(cfg)
-
